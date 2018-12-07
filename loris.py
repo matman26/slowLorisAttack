@@ -2,6 +2,7 @@
 
 # Imports
 from scapy.all import *
+import time
 
 def send_get(ip_addr):
     ip = IP(dst=ip_addr)
@@ -14,16 +15,15 @@ def send_get(ip_addr):
 
     # Send ACK and GET
     ACKGET=ip/TCP(sport=SYNACK.dport, dport=80, flags="A", seq=SYNACK.ack, ack=SYNACK.seq + 1)/get
-
     send(ACKGET)
 
 def main():
 
     # Make requests
-    send_get("35.204.58.85")
-
-
-
+    while True:
+        for i in range(0,100):
+            send_get("192.168.1.50")
+        time.sleep(10)
 
 if __name__== "__main__":
     main()

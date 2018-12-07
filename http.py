@@ -1,12 +1,11 @@
 #!/usr/bin/env python
-
 # Imports
 from scapy.all import *
 import time
 
 # Make a TCP SYN
 ip = IP(dst="35.204.58.85")
-get='GET / HTTP/1.0\n\n'
+get = 'GET /index.html HTTP/1.1\r\nUser-Agent: Wget/1.19.5 (linux-gnu)\r\nAccept: */*\r\nAccept-Encoding: identity\r\nHost: 35.204.85.58\r\nConnection: Keep-Alive\r\n\n'
 port = RandNum(1024,6500)
 SYN = ip/TCP(sport=port, dport=80, flags="S", seq=42)
 
@@ -16,3 +15,4 @@ SYNACK = sr1(SYN)
 # Send ACK and GET
 ACKGET=ip/TCP(sport=SYNACK.dport, dport=80, flags="A", seq=SYNACK.ack, ack=SYNACK.seq + 1)/get
 send(ACKGET)
+
