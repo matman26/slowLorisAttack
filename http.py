@@ -31,4 +31,3 @@ SYNACK = sr1(SYN)
 # Send ACK and finally HTTP GET, sniff for the result
 ACK=ip/TCP(sport=SYNACK.dport, dport=server_port, flags="A", seq=SYNACK.ack, ack=(SYNACK.seq+1))/get
 sniff(filter="tcp and port 80", store=False, prn=handle)
-
