@@ -2,7 +2,38 @@
 \usepackage[utf8]{inputenc}
 \usepackage[margin=1 in]{geometry}
 \usepackage{graphicx}
-\usepackage{hyperref}
+\usepackage[colorlinks]{hyperref}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\hypersetup{
+  colorlinks=true,
+  urlcolor=blue
+}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=Python,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
 
 \author{Matheus Augusto da Silva - Alessandro Montaldo}
 \title{\textbf{SR2I 203 - État de l'art, études initiaux}}
@@ -25,11 +56,88 @@
 
 %--------------------------
 \section{Implémentation en Python}
+Le travail d'implémentation a commencé en déterminant les aspects principaux requises. Fonctionnellement, nous avions
+besoin d'un petit programme capable d’envoyer requêtes HTTP.Comme nous disons la section d'avant,
+l'attaque \textit{slowloris} est fonctionnellement très élégant; en exploitant le mécanisme des GET
+requests du protocole HTTP plusieurs fois, on occupe tous les \textit{threads} disponibles au serveur.
+Alors, comme le but de notre état de l'art, on a fixé l'objectif d’implémenter un programme capable d'envoyer
+GET requests à un serveur web HTTP.Cette fonctionnalité pourra après être déléguée à une fonction en python,
+que l'on appellera lors de l'attaque dans une structure de contrôle plus intelligente.
+Le but est d'utiliser les méthodes de Scapy, ce qui nous donnera la capacité de contrôler d'une façon plus granulaire
+l'envoie des paquets. Le code source est travaillé et managé à travers de
+git et le repositoire est disponible publiquement sur Github (documenté en anglais) sur le lien \href{https://github.com/AlessandroMontaldo/slowLorisAttack}{https://github.com/AlessandroMontaldo/slowLorisAttack}
 
+\begin{lstlisting}
+#!/usr/bin/env python
+# Imports
+from scapy.all import *
+from scapy.all import http
+
+# This handles HTTP responses from the server
+def handle(pkt):
+    if pkt.haslayer(http.HTTPRequest):
+        print(pkt)
+    
+# Make a TCP SYN
+#ip_address="35.204.58.85"    # Alessandro's server
+ip_address="192.168.33.10"    # Matheus' VM (see Vagrantfile)
+server_port=80                # http port
+ip = IP(dst=ip_address)       # IP Packet 
+
+# HTTP GET Request
+get = "GET / HTTP/1.1\r\nHost: " + ip_address + "\r\n\r\n"
+port = RandNum(1024,6500)
+
+# The TCP 3-way handshake rules must be followed. As such, we begin by sending a
+# TCP packet with the S (or SYN) flag set. The sequence number is irrelevant, as all
+# future TCP packets will contain sequence numbers which are increments of the number
+# given
+SYN = ip/TCP(sport=port, dport=server_port, flags="S", seq=42) 
+
+# Send SYN and wait for SYNACK as response
+print(SYN.summary())
+SYNACK = sr1(SYN)
+
+# Send ACK and finally HTTP GET, sniff for the result
+ACK=ip/TCP(sport=SYNACK.dport, dport=server_port, flags="A", seq=SYNACK.ack, ack=(SYNACK.seq+1))/get
+sniff(filter="tcp and port 80", store=False, prn=handle)
+\end{lstlisting}
 %--------------------------
-\section{Prochain travail à faire}
+\section{Travaux futurs}
+Le but des prochains travaux sera d'effectivement mettre une couche logique sur la méthode GET de tel façon
+à obtenir le comportement attendu. Dans ce moment, la fonction principal du travail est http.py. La prochaine
+étape sera de la transformer en une fonction qui reçoit un adresse IP et un numéro de porte. La logique d'allouer
+numéro de portes sera toute faite par loris.py, que l'on développera à la suite. En termes de pseudo-code, on veut
+à la fin que notre algorithme aie une logique (simplifiée) similaire à:
 
 
+\begin{algorithm}
+\caption{Une implémentation de slowloris}
+\begin{algorithmic}
+
+\STATE $target\_ip \leftarrow getIP()$
+\FOR {( i=1,i $<=$ PORTS_{MAX}, i+)}
+\END
+\WHILE{1}
+\STATE $target\_port \leftarrow randomNumber(1024,6554)$
+\IF{isAvailable(target\_port)}
+\STATE $incompleteGetRequest(target\_ip,target\_port)$
+\ELSE
+
+\ENDIF
+%\WHILE{$N \neq 0$}
+%\IF{$N$ is even}
+%\STATE $X \leftarrow X \times X$
+%\STATE $N \leftarrow N / 2$
+%\ELSE[$N$ is odd]
+%\STATE $y \leftarrow y \times X$
+%\STATE $N \leftarrow N - 1$
+%\ENDIF
+%\ENDWHILE
+
+\ENDWHILE
+\end{algorithmic}
+\end{algorithm}
 
 \begin{thebibliography}{}
 \bibitem{rfc}{Internet Engineering Task Force (IETF)\\
