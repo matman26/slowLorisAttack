@@ -8,6 +8,7 @@
 \usepackage{algorithm}
 \usepackage{algorithmic}
 \usepackage{float} %for floating images
+\usepackage[table,xcdraw]{xcolor} %for colored tables
 
 \hypersetup{
   colorlinks=true,
@@ -45,13 +46,13 @@
 
 %--------------------------
 \section{Introduction}
-Our project consists in the study and the implementation of a specific type of Denial of Service attack, a Low and Slow type attack, the slowloris attack. \\
-The objective of this report is to introduce the studies and progresses done and explain and motivate which will be our next steps.
-In particular the have followed path: \\
+Notre projet consiste en l’étude et la mise en œuvre d’un type spécifique d’attaque par déni de service, une
+Attaque de type Low et Slow, l’attaque Slowloris. L’objectif de ce rapport est de présenter les études et les progrès réalisés et d’expliquer et de motiver les
+seront nos prochaines étapes. En particulier nous avons suivi le chemin: \\
 
 \begin{itemize}
-	\item a study focused on the comprehension of the main functionallity of the HTTP protocol and Apache web server.
-	\item a research focused on the slowloris attack.
+	\item une étude concentrée sur la compréhension des fonctionnalités principales du protocole HTTP et du serveur Web Apache.
+	\item une recherche concentrée sur l'attaque de slowloris.
 	\item a realisation of a first implementation in Python using the software Scapy of the basic functionallity of the attack.
 \end{itemize}
 
@@ -77,10 +78,40 @@ HTTP responses look a lot like HTTP requests. The only significant difference is
 	\end{center}
 \end{figure}
 
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[width=0.6\textwidth]{images/ok.png} % Include the image placeholder.png
+		\caption{OK message example}
+	\end{center}
+\end{figure}
+
 %--------------------------
 \section{Étude du Serveur Web Apache}
 Apache est le serveur Web le plus populaire sur Internet. Plus que la majorité des sites Web sont basés sur elle. Ce qui rend Apache vulnérable à l'attaque qui sera analysée, c'est la manière dont il traite ses clients. En particulier, après avoir reçu une requête HTTP, un nouveau fil associé à cette conversation s'ouvrira. \\
-Les serveurs Apache plus anciens utilisent un modèle de limitation de thread, généralement un serveur Apache normal peut ouvrir environ 200 threads en parallèle. Normalement, la limitation n’est pas un problème pour les serveurs de site de petite taille, dans la mesure où ils n’ont pas besoin de gérer leur trafic.
+Le serveur est fourni avec une variété de Modules Multi-Processus (MPMs) qui sont responsables de l'association aux ports réseau de la machine, acceptent les requêtes, et se chargent de répartir ces dernières entre les différents processus enfants. \\
+
+%Les serveurs Apache plus anciens utilisent un modèle de limitation de thread, généralement un serveur Apache normal peut ouvrir environ 200 threads en parallèle. Normalement, la limitation n’est pas un problème pour les serveurs de site de petite taille, dans la mesure où ils n’ont pas besoin de gérer leur trafic.
+
+\noindent
+La table suivante fournit la liste des MPMs par défaut pour divers systèmes d'exploitation: \\
+
+\begin{table}[H]
+\begin{tabular}{|
+>{\columncolor[HTML]{EFEFEF}}l |
+>{\columncolor[HTML]{EFEFEF}}l |}
+\hline
+Netware & mpm\_netware                                                                                                  \\ \hline
+OS/2    & mpmt\_os2                                                                                                     \\ \hline
+Unix    & \begin{tabular}[c]{@{}l@{}}prefork, worker,\\ ou event, selon les possibilités de la plate-forme\end{tabular} \\ \hline
+Windows & mpm\_winnt                                                                                                    \\ \hline
+\end{tabular}
+\end{table}
+
+\noindent
+Par exemple, pour un serveur Unix prenant en charge les threads multiples et les threads sécurisés avec interrogation, l'événement MPM sera utilisé. \\
+Un processus de contrôle unique (le parent) a pour tâche de lancer les processus enfants. Chaque processus enfant crée un nombre fixe de threads serveurs selon la valeur de la directive ThreadsPerChild (25 par défaut), ainsi qu'un thread chargé d'attendre les connexions et de les passer à un thread serveur pour traitement au fur et à mesure de leur arrivée. \\
+Le nombre maximum de clients pouvant être servis simultanément (c'est à dire le nombre global maximum de threads pour tous les processus) est défini par la directive MaxRequestWorkers (256 par défaut).
+
 
 \subsection{Nginx vs Apache}
 Nginx a été créé pour résoudre le problème de la gestion d’un grand nombre de connexions. Enfait, au lieu d’une architecture à base de threads, comme Apache, Nginx a une architecture pilotée par les événements qui ne crée pas de nouveau processus pour chaque requête. Dans notre projet, nous testerons l’attaque de slowloris sur différents serveurs Web et verrons si l’expérimentation
@@ -88,6 +119,7 @@ Nginx a été créé pour résoudre le problème de la gestion d’un grand nomb
 %--------------------------
 \section{Étude du attaque Slowloris}
 L'idée de base de l'attaque de slowloris est d'ouvrir de nombreuses connexions en envoyant des requêtes HTTP partielles. Des fractions de la demande sont envoyées ultérieurement à intervalles réguliers pour empêcher les sockets de se fermer. \\
+This attack is different from other DoS attacks such as SYN flood attacks which misuse the TCP SYN (synchronization) segment during a TCP three-way-handshake. \\
 On peut diviser un exploit suivant l'algorithme suivant: \\
 \begin{itemize}
 	\item On crée une requête GET destinée au serveur cible
@@ -98,7 +130,7 @@ On peut diviser un exploit suivant l'algorithme suivant: \\
 \end{itemize}
 
 \subsection{Slowloris detectability}
-A desireble property of an attack is its detectability. After the slowloris attack starts any attached on the log file won't be done until the requests are completed. Once the request is completely sent or once the session gets shut down there will be a log trace of the connection, this means that several hundred 400 errors in the web server logs will be presents,  although it may be possible to turn them into 200 OK messages instead by completing a valid request.
+A desireble property of an attack is its non detectability. A Slow HTTP DoS attack is not commonly detected by Intrusion Detection Systems (IDS) since the attack does not contain any malformed requests. The HTTP request will seem legitimate to the IDS and will pass it onto the web server. Moreover the web servers logs will start to be presents only after the the requests are completed. This means that only when the attack has already got the server resources several hundred 400 errors will be presents in the logs. An interesting idea is to be developed is trying to set the timer between one fragment and onother in order to turn the error into 200 OK messages by completing a valid request.
 
 %--------------------------
 \section{Implémentation en Python}
@@ -203,6 +235,9 @@ HTTP Essentials: Protocols for Secure, Scaleable Web Sites}
 
 \bibitem{repo}{Repositoire Github \\
 \href{https://github.com/llaera/slowloris.pl}{slowloris.pl, a perl implementation}}
+
+\bibitem{repo}{Acunetix website \\
+\href{https://www.acunetix.com/blog/articles/slow-http-dos-attacks-mitigate-apache-http-server/}{Acunetix blog - How To Mitigate Slow HTTP DoS Attacks in Apache HTTP Server}}
 
 \end{thebibliography}
 
