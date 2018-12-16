@@ -7,7 +7,8 @@
 \usepackage{color}
 \usepackage{algorithm}
 \usepackage{algorithmic}
-\usepackage{float} 
+\usepackage{float} %for floating images
+\usepackage[table,xcdraw]{xcolor} %for colored tables
 
 \hypersetup{
   colorlinks=true,
@@ -60,10 +61,10 @@ Hypertext Transfer Protocol a été conçu avec le but de construire une archite
 Le principe c'est d'une architecture où un site web (serveur ou ensemble de serveurs) est associé à plusieurs ressources lesquelles un client peut demander via les méthodes HTTP. Un serveur web peut être identifié par son URL ou son adresse IP et généralement garde informations comme pages web, images et fichiers.
 
 \subsection{HTTP Requests and responses}
-Each request begins with a Request-Line that indicates specific method, the resource to which the method applies, and the version of http that the client can support. One or more message headers can follow and a message body separated with a blank line. \\
+Chaque rêquete commence avec un \textit{Request-Line} indiquant la méthode HTTP à être utilisée, la ressource que l'on veut demander (ou envoyer) et la version du protocole HTTP que le client peut supporter. Le corps du message peut être séparé de l'entête via une ligne vide, lorsque ce qui signalise la fin d'une message HTTP est une séquence de deux lignes vides.
 
 \noindent
-Réponses HTTP sont très similaires à requêtes HTTP.La seule différence significative est que réponses commencent avec un \textit{status line} lorsque
+Réponses HTTP sont très similaires à requêtes HTTP. La seule différence significative est que réponses commencent avec un \textit{status line} lorsque
 requêtes ont pour début une \textit{request line}.
 
 \begin{figure}[H]
@@ -74,19 +75,47 @@ requêtes ont pour début une \textit{request line}.
 	\end{center}
 \end{figure}
 
+\begin{figure}[H]
+	\begin{center}
+		\includegraphics[width=0.6\textwidth]{images/ok.png} % Include the image placeholder.png
+		\caption{Exemple de message OK.}
+	\end{center}
+\end{figure}
+
 %--------------------------
 \section{Étude du Serveur Web Apache}
 Apache est le serveur Web le plus populaire sur Internet. Plus que la majorité des sites Web sont basés sur lui. Ce qui rend Apache vulnérable à l'attaque qui sera analysé, c'est la manière dont il traite ses clients. En particulier, après avoir reçu une requête HTTP, un nouveau fil associé à cette conversation s'ouvrira. \\
-Les serveurs Apache plus anciens utilisent un modèle de limitation de thread, généralement un serveur Apache normal peut ouvrir environ 200 threads en parallèle. Normalement, la limitation n’est pas un problème pour les serveurs de site de petite taille, dans la mesure où ils n’ont pas besoin de gérer leur trafic.
+Les serveurs Apache plus anciens utilisent un modèle de limitation de \textit{threads}, généralement un serveur Apache normal peut ouvrir environ 200 threads en parallèle. Normalement, la limitation n’est pas un problème pour les serveurs de site de petite taille, dans la mesure où ils n’ont pas besoin de gérer leur trafic.
+Le serveur est fourni avec une variété de Modules Multi-Processus (MPMs) qui sont responsables de l'association aux ports réseau de la machine, acceptent les requêtes, et se chargent de répartir ces dernières entre les différents processus enfants. \\
+
+\noindent
+La table suivante fournit la liste des MPMs par défaut pour divers systèmes d'exploitation: \\
+
+\begin{table}[H]
+  \centering
+\begin{tabular}{|
+>{\columncolor[HTML]{EFEFEF}}l |
+>{\columncolor[HTML]{EFEFEF}}l |}
+\hline
+Netware & mpm\_netware                                                                                                  \\ \hline
+OS/2    & mpmt\_os2                                                                                                     \\ \hline
+Unix    & \begin{tabular}[c]{@{}l@{}}prefork, worker,\\ ou event, selon les possibilités de la plate-forme\end{tabular} \\ \hline
+Windows & mpm\_winnt                                                                                                    \\ \hline
+\end{tabular}
+\end{table}
+
+\noindent
+En supposant que le serveur supporte le \textit{multi-threading}, un processus parent sera généré et responsabilisé de créer les processus enfants. Chaque processus enfant va créer un nombre fixe de threads du serveurs selon la valeur du paramètre \textit{ThreadsPerChild} (25 par défaut), ainsi qu'un thread chargé d'attendre les connexions et de les passer à un thread serveur pour traitement au fur et à mesure de leur arrivée. \\
+Le nombre maximum de clients pouvant être servis simultanément (c'est à dire le nombre global maximum de threads pour tous les processus) est défini par la directive MaxRequestWorkers (256 par défaut).
 
 \subsection{Nginx vs Apache}
-Nginx a été créé pour résoudre le problème de la gestion d’un grand nombre de connexions. Enfait, au lieu d’une architecture à base de threads, comme Apache, Nginx a une architecture pilotée par les événements qui ne crée pas de nouveau processus pour chaque requête. Dans notre projet, nous testerons l’attaque de slowloris sur différents serveurs Web et verrons si l’expérimentation réussira. Dans les cas de serveurs plus résilients, on essayera de faire une version distribuée du attaque, ce qui nous permettra d'attaquer sites plus résilients.
+Nginx a été créé pour résoudre le problème de la gestion d’un grand nombre de connexions. En fait, au lieu d’une architecture à base de threads, comme Apache, Nginx a une architecture pilotée par les événements qui ne crée pas de nouveau processus pour chaque requête. Dans notre projet, nous testerons l’attaque de slowloris sur différents serveurs Web et verrons si l’expérimentation réussira.
 
 %--------------------------
 \section{Étude du attaque Slowloris}
-L'idée de base de l'attaque de slowloris est d'ouvrir de nombreuses connexions en envoyant des requêtes HTTP partielles. Des fractions de la demande sont envoyées ultérieurement à intervalles réguliers pour empêcher les sockets de se fermer.
-On peut diviser un exploit suivant l'algorithme suivant:
-
+L'idée de base de l'attaque de slowloris est d'ouvrir de nombreuses connexions en envoyant des requêtes HTTP partielles. Des fractions de la demande sont envoyées ultérieurement à intervalles réguliers pour empêcher les sockets de se fermer. \\
+L'attaque se différencie d'autres attaques DoS comme les \textit{SYN flood attacks} qui exploitent la mécanique de synchronisation TCP (le paquet TCP SYN) pendant la négociation du \textit{three-way-handshake} \\
+On peut diviser un exploit suivant l'algorithme suivant: \\
 \begin{itemize}
 	\item On crée une requête GET destinée au serveur cible
 	\item On envoie la requête très lentement et d'une façon incomplète
@@ -95,11 +124,12 @@ On peut diviser un exploit suivant l'algorithme suivant:
 	\item Avec le temps, les requêtes lentes mais continues de la machine attaquante iront remplacer tous les connexions "légitimes".
 \end{itemize}
 
-\subsection{Slowloris detectability}
-A desireble property of an attack is its detectability. After the slowloris attack starts any attached on the log file won't be done until the requests are completed. Once the request is completely sent or once the session gets shut down there will be a log trace of the connection, this means that several hundred 400 errors in the web server logs will be presents,  although it may be possible to turn them into 200 OK messages instead by completing a valid request.
+\subsection{Détectabilité}
+Une propriété désirable du attaque est sa capacité de n'être pas détecté. Un attaque DoS lent ne sera pas détecte pour Systèmes de Détection d'Intruses (IDS) dès que l'attaque ne contient pas requêtes malformés. Requêtes HTTP qui semblent légitimes passeront par l'IDS et seront acheminées au serveur Web. Les \textit{logs} du serveur seront mis à jour juste après que les requêtes soient complétés, ce qui veut dire qu'après un attaque de cette nature les fichiers \textit{logs} verront le flux de plusieurs messages du type 400 ( erreurs HTTP ). Une idée à être considérée c'est de mettre en place un \textit{timer} qui accompagne l'évolution des requêtes HTTP, responsable pour fermer les connexions d'une façon valide avant la fermeture du dialogue.
 
 %--------------------------
 \section{Implémentation en Python}
+
 \subsection{Programmation}
 Le travail d'implémentation a commencé en déterminant les aspects principaux requises. Fonctionnellement, nous avions
 besoin d'un petit programme capable d’envoyer requêtes HTTP.Comme nous disons la section d'avant,
@@ -112,6 +142,7 @@ Le but est d'utiliser les méthodes de Scapy, ce qui nous donnera la capacité d
 l'envoie des paquets. Le code source est travaillé et managé à travers de
 git et le dépôt est disponible publiquement sur Github (documenté en anglais) sur le lien \href{https://github.com/AlessandroMontaldo/slowLorisAttack}{https://github.com/AlessandroMontaldo/slowLorisAttack}
 
+\newpage
 \begin{lstlisting}
 #!/usr/bin/env python
 # Imports
@@ -143,7 +174,8 @@ server_port=80                # http port
 ip = IP(dst=ip_address)       # IP Packet 
 
 # HTTP GET Request
-get = "GET / HTTP/1.1\r\nHost: " + ip_address + "\r\n\r\n"
+ge
+t = "GET / HTTP/1.1\r\nHost: " + ip_address + "\r\n\r\n"
 port = RandNum(1024,6500)
 
 # The TCP 3-way handshake rules must be followed. As such, we begin by sending a
@@ -162,6 +194,7 @@ send(ACK)
 #sniff(filter="tcp and port 80", store=False, prn=handle) # we'll improve on this later 
 \end{lstlisting}
 
+\newpage
 
 \subsection{Résultats}
 Le code montré avant est l'état de l'art. Il peut effectivement envoyer les requêtes incomplètes que l'on veut
@@ -187,6 +220,7 @@ Le but des prochains travaux sera d'effectivement mettre une couche logique sur 
 étape sera de la transformer en une fonction qui reçoit un adresse IP et un numéro de porte. La logique d'allouer
 numéro de portes sera toute faite par loris.py, que l'on développera à la suite.
 
+
 \begin{thebibliography}{}
 
 \bibitem{rfc}{Internet Engineering Task Force (IETF)\\
@@ -198,14 +232,14 @@ HTTP Essentials: Protocols for Secure, Scaleable Web Sites}
 \bibitem{apache}{The Apache Group \\
 \href{https://httpd.apache.org/docs/2.2/fr/new_features_2_0.html.fr}{Vue d'ensemble des nouvelles fonctionnalités d'Apache 2.0}}
 
-\bibitem{apache-attacked}{Christian Folini, LWN.net group, archivé \\
-\href{archive.wikiwix.com/cache/?url=http\%3A\%2F\%2Flwn.net\%2FArticles\%2F338407\%2FA}{Apache attacked by a slowloris}}
-
 \bibitem{hackers}{Ha.ckers group, archivé \\
 \href{https://web.archive.org/web/20150426090206/http://ha.ckers.org/slowloris}{Slowloris HTTP DoS}}
 
 \bibitem{repo}{Dépôt Github \\
 \href{https://github.com/llaera/slowloris.pl}{slowloris.pl, a perl implementation}}
+
+\bibitem{repo}{Acunetix website \\
+\href{https://www.acunetix.com/blog/articles/slow-http-dos-attacks-mitigate-apache-http-server/}{Acunetix blog - How To Mitigate Slow HTTP DoS Attacks in Apache HTTP Server}}
 
 \end{thebibliography}
 \end{document}
