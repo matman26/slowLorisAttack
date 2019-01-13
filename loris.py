@@ -6,24 +6,37 @@ from request_http import *
 import time
 import random
 
+
 def main():
     ip_address = "35.204.165.14"
-    port = 4213 #random.randint(1024,6000)
-    list_size = 200
+    port = random.randint(1024,6000) # 4213 
+    list_size = 1
     my_list = list(range(port, port + list_size))
 
-    print(my_list)
-    for port_number in my_list:
-        httpRequest(ip_address,port_number)
-    
-    # Make requests
-    '''
-    while True:
-        for i in range(0,100):
-            send_get("192.168.1.50")
-        time.sleep(10)
-    '''
+    seqAckList = []
+    seqNumList = []
 
+    for _ in range(list_size):
+        seqNumList.append(1) #init of seq numb
+        seqAckList.append(1) #init of ack numb
+
+    print(my_list)
+
+    for p in my_list:
+        seqNumList[p], seqAckList[p] = httpRequest(ip_address,p, seqNumList[p])
+    
+    for n in range(5):
+        for p in my_list:
+            ACK = ip/TCP(sport=p,
+                         dport=server_port,
+                         flags="A",
+                         seq=seqNumList[p],
+                         ack=seqAckList[p])
+            MYNUMBER=ACK/"X-a: {}\r\r".format(random.randint(1,5000)).encode("utf-8")
+            answerMyNumber = sr1(MYNUMBER)
+            seqNumlist[p]+= 1
+            seqAcklist[p] = answerMyNumber.seq
+        
 if __name__== "__main__":
     main()
 
