@@ -21,11 +21,13 @@ import random
         #pkt.show()
 
 # Make a TCP SYN
-def httpRequest(ip_address,source_port,sequence_number=42):
+def httpRequest(ip_address,source_port,sequence_number=42): 
     #ip_address="35.204.58.85"    # Alessandro's server
     #ip_address="192.168.33.10"    # Matheus' VM (see Vagrantfile)
     #ip_address="35.204.165.14"
     #source_port = random.randrange(1024,6500)
+
+    print('httpRequest fuct: port =', source_port, ' seq =', sequence_number)
 
     server_port=80                # http port
     ip = IP(dst=ip_address)       # IP Packet 
@@ -36,7 +38,7 @@ def httpRequest(ip_address,source_port,sequence_number=42):
     + "\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,/;q=0.8"
     + "\r\nAccept-Language: en-US,en;q=0.5"
     + "\r\nAccept-Encoding: gzip, deflate"
-    + "\r\nConnection: keep-alive\r\n\r\n"
+    + "\r\nConnection: keep-alive\r\n"
     #+ "\r\nConnection: keep-alive"
     )
 
@@ -45,7 +47,7 @@ def httpRequest(ip_address,source_port,sequence_number=42):
     SYN = ip/TCP(sport=source_port, dport=server_port, flags="S", seq=sequence_number) 
 
     # Send SYN and wait for SYNACK as response
-    SYN.show()
+    #SYN.show()
     SYNACK = sr1(SYN)
 
     # Send ACK and finally HTTP GET, sniff for the resultACK = ip/TCP(sport=SYNACK.dport, dport=server_port, flags="A", seq=SYNACK.ack, ack=(SYNACK.seq+1))
