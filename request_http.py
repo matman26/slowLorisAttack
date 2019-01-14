@@ -5,15 +5,14 @@ from scapy.all import *
 import scapy_http.http
 import random
 
-# TITLE: http.py
+# TITLE: request_http.py
 # AUTHORS: Matheus Augusto da Silva; Alessandro Montaldo
 # OBS: The following command stops Linux machines from dropping
 # the TCP connection started by scapy (run as root):
 # iptables -A OUTPUT -p tcp --tcp-flags RST RST -j DROP
 
-# This function sends a GET Request in HTTP 1.1 after the 3-way handshake
-# For the next part of the project, this will be restructured into a function
-# which receives and IP address & port number and returns the HTTP response to the GET
+# This function sends a GET Request in HTTP 1.1 after the TCP 3-way handshake and
+# returns some information on the state of the TCP connection
 
 # This handles HTTP responses from the server
 #def handle(pkt):

