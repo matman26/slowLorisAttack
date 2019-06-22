@@ -15,7 +15,7 @@ import time
 
 # This returns the length of the packet we just sent (to update the sequence numbers later)
 def utf8len(s):
-	return len(s.encode('utf-8'))
+	return len(s)
 
 # This makes a TCP Three-way Handshake and returns the last packet sent(Incomplete GET Request)
 def httpRequest(ip_address,source_port,sequence_number=42): 
