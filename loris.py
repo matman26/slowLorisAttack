@@ -58,6 +58,8 @@ def main():
     seqAckList = [None] * list_size
     seqNumList = [None] * list_size
 
+    print("Just made a change.")
+
     # This will initialise each individual TCP socket
     print("[+] Initializing " + str(list_size)+ " Sockets")
     for p in range(list_size):
